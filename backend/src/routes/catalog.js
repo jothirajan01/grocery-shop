@@ -1,0 +1,13 @@
+const router = require('express').Router();
+const prisma = require('../config/prisma');
+const { authenticate, authorize } = require('../middleware/auth');
+router.use(authenticate);
+router.get('/categories', async (req,res,next)=>{try{res.json(await prisma.category.findMany({orderBy:{name:'asc'}}))}catch(e){next(e)}});
+router.post('/categories', authorize('ADMIN'), async(req,res,next)=>{try{res.status(201).json(await prisma.category.create({data:{name:req.body.name}}))}catch(e){next(e)}});
+router.get('/customers', async(req,res,next)=>{try{res.json(await prisma.customer.findMany({orderBy:{name:'asc'}}))}catch(e){next(e)}});
+router.post('/customers', async(req,res,next)=>{try{const b=req.body;res.status(201).json(await prisma.customer.create({data:{name:b.name,phone:b.phone||null,address:b.address||null,gstin:b.gstin||null,creditLimit:Number(b.creditLimit||0),openingBalance:Number(b.openingBalance||0),currentBalance:Number(b.openingBalance||0)}}))}catch(e){next(e)}});
+router.put('/customers/:id', async(req,res,next)=>{try{const b=req.body;res.json(await prisma.customer.update({where:{id:Number(req.params.id)},data:{name:b.name,phone:b.phone||null,address:b.address||null,gstin:b.gstin||null,creditLimit:Number(b.creditLimit||0)}}))}catch(e){next(e)}});
+router.get('/suppliers', async(req,res,next)=>{try{res.json(await prisma.supplier.findMany({orderBy:{name:'asc'}}))}catch(e){next(e)}});
+router.post('/suppliers', authorize('ADMIN'), async(req,res,next)=>{try{const b=req.body;res.status(201).json(await prisma.supplier.create({data:{name:b.name,phone:b.phone||null,email:b.email||null,address:b.address||null,gstin:b.gstin||null,contactPerson:b.contactPerson||null,openingBalance:Number(b.openingBalance||0),currentBalance:Number(b.openingBalance||0)}}))}catch(e){next(e)}});
+router.put('/suppliers/:id', authorize('ADMIN'), async(req,res,next)=>{try{const b=req.body;res.json(await prisma.supplier.update({where:{id:Number(req.params.id)},data:{name:b.name,phone:b.phone||null,email:b.email||null,address:b.address||null,gstin:b.gstin||null,contactPerson:b.contactPerson||null}}))}catch(e){next(e)}});
+module.exports = router;

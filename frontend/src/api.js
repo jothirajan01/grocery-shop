@@ -1,0 +1,3 @@
+const API=import.meta.env.VITE_API_URL||'http://localhost:5000/api';
+export async function api(path, options={}){const token=localStorage.getItem('token');const r=await fetch(API+path,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{}) ,...(options.headers||{})}});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.message||'Request failed');return data}
+export const get=(p)=>api(p);export const post=(p,b)=>api(p,{method:'POST',body:JSON.stringify(b)});export const put=(p,b)=>api(p,{method:'PUT',body:JSON.stringify(b)});export const del=(p)=>api(p,{method:'DELETE'});

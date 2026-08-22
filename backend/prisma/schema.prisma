@@ -1,0 +1,231 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role { ADMIN CASHIER }
+enum PaymentMethod { CASH UPI CARD CREDIT OTHER }
+
+model User {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique
+  passwordHash String
+  name         String
+  role         Role      @default(CASHIER)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sales        Sale[]
+  stockChanges StockTransaction[]
+  auditLogs    AuditLog[]
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model Supplier {
+  id            Int       @id @default(autoincrement())
+  name          String
+  phone         String?
+  email         String?
+  address       String?
+  gstin         String?
+  contactPerson String?
+  openingBalance Decimal  @default(0) @db.Decimal(12,2)
+  currentBalance Decimal  @default(0) @db.Decimal(12,2)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  products      Product[]
+  purchases     Purchase[]
+}
+
+model Customer {
+  id            Int       @id @default(autoincrement())
+  name          String
+  phone         String?
+  address       String?
+  gstin         String?
+  creditLimit   Decimal   @default(0) @db.Decimal(12,2)
+  openingBalance Decimal  @default(0) @db.Decimal(12,2)
+  currentBalance Decimal  @default(0) @db.Decimal(12,2)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sales         Sale[]
+  payments      Payment[]
+}
+
+model Product {
+  id             Int       @id @default(autoincrement())
+  sku            String    @unique
+  barcode        String?   @unique
+  name           String
+  brand          String?
+  unit           String    @default("Piece")
+  purchasePrice  Decimal   @default(0) @db.Decimal(12,2)
+  sellingPrice   Decimal   @default(0) @db.Decimal(12,2)
+  mrp            Decimal   @default(0) @db.Decimal(12,2)
+  openingStock   Decimal   @default(0) @db.Decimal(12,3)
+  currentStock   Decimal   @default(0) @db.Decimal(12,3)
+  minStockLevel  Decimal   @default(0) @db.Decimal(12,3)
+  gstApplicable  Boolean   @default(false)
+  gstPercentage  Decimal   @default(0) @db.Decimal(5,2)
+  hsnSac         String?
+  expiryDate     DateTime?
+  active         Boolean   @default(true)
+  categoryId     Int?
+  supplierId     Int?
+  category       Category? @relation(fields: [categoryId], references: [id])
+  supplier       Supplier? @relation(fields: [supplierId], references: [id])
+  purchaseItems  PurchaseItem[]
+  saleItems      SaleItem[]
+  stockChanges   StockTransaction[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  @@index([name])
+  @@index([categoryId])
+  @@index([supplierId])
+}
+
+model Purchase {
+  id            Int       @id @default(autoincrement())
+  invoiceNo     String    @unique
+  supplierId    Int?
+  purchaseDate  DateTime  @default(now())
+  subtotal      Decimal   @default(0) @db.Decimal(12,2)
+  discount      Decimal   @default(0) @db.Decimal(12,2)
+  gstTotal      Decimal   @default(0) @db.Decimal(12,2)
+  total         Decimal   @default(0) @db.Decimal(12,2)
+  paymentStatus String    @default("PENDING")
+  notes         String?
+  supplier      Supplier? @relation(fields: [supplierId], references: [id])
+  items         PurchaseItem[]
+  createdAt     DateTime  @default(now())
+}
+
+model PurchaseItem {
+  id              Int      @id @default(autoincrement())
+  purchaseId      Int
+  productId       Int
+  quantity        Decimal  @db.Decimal(12,3)
+  unitPurchasePrice Decimal @db.Decimal(12,2)
+  discount        Decimal  @default(0) @db.Decimal(12,2)
+  gstPercentage   Decimal  @default(0) @db.Decimal(5,2)
+  total           Decimal  @db.Decimal(12,2)
+  purchase        Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [productId], references: [id])
+  @@index([productId])
+}
+
+model Sale {
+  id            Int           @id @default(autoincrement())
+  invoiceNo     String        @unique
+  customerId    Int?
+  userId        Int
+  saleDate      DateTime      @default(now())
+  subtotal      Decimal       @db.Decimal(12,2)
+  discount      Decimal       @default(0) @db.Decimal(12,2)
+  gstTotal      Decimal       @default(0) @db.Decimal(12,2)
+  grandTotal    Decimal       @db.Decimal(12,2)
+  paymentMethod PaymentMethod @default(CASH)
+  amountPaid    Decimal       @default(0) @db.Decimal(12,2)
+  status        String        @default("COMPLETED")
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+  items         SaleItem[]
+  payment       Payment?
+  createdAt     DateTime      @default(now())
+  @@index([saleDate])
+}
+
+model SaleItem {
+  id             Int      @id @default(autoincrement())
+  saleId         Int
+  productId      Int
+  quantity       Decimal  @db.Decimal(12,3)
+  unitPrice      Decimal  @db.Decimal(12,2)
+  discount       Decimal  @default(0) @db.Decimal(12,2)
+  taxableValue   Decimal  @db.Decimal(12,2)
+  gstPercentage  Decimal  @default(0) @db.Decimal(5,2)
+  gstAmount      Decimal  @default(0) @db.Decimal(12,2)
+  sale           Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product        Product  @relation(fields: [productId], references: [id])
+  @@index([productId])
+}
+
+model Payment {
+  id            Int           @id @default(autoincrement())
+  saleId        Int?          @unique
+  customerId    Int?
+  supplierId    Int?
+  amount        Decimal       @db.Decimal(12,2)
+  method        PaymentMethod @default(CASH)
+  paymentDate   DateTime      @default(now())
+  notes         String?
+  sale          Sale?         @relation(fields: [saleId], references: [id])
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+}
+
+model StockTransaction {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  userId    Int?
+  type      String
+  quantity  Decimal  @db.Decimal(12,3)
+  reference String?
+  notes     String?
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+  @@index([productId, createdAt])
+}
+
+model Expense {
+  id            Int           @id @default(autoincrement())
+  expenseDate   DateTime      @default(now())
+  category      String
+  description   String?
+  amount        Decimal       @db.Decimal(12,2)
+  paymentMethod PaymentMethod @default(CASH)
+  notes         String?
+  createdAt     DateTime      @default(now())
+}
+
+model GstRate {
+  id        Int      @id @default(autoincrement())
+  rate      Decimal  @unique @db.Decimal(5,2)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model ShopSetting {
+  id            Int      @id @default(1)
+  shopName      String   @default("My Grocery Shop")
+  address       String?
+  phone         String?
+  email         String?
+  gstin         String?
+  invoicePrefix String   @default("INV")
+  currency      String   @default("INR")
+  invoiceFooter String   @default("Thank you for shopping with us!")
+  allowNegativeStock Boolean @default(false)
+  updatedAt     DateTime @updatedAt
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+}

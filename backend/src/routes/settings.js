@@ -1,0 +1,4 @@
+const router=require('express').Router();const prisma=require('../config/prisma');const {authenticate,authorize}=require('../middleware/auth');router.use(authenticate);
+router.get('/',async(req,res,next)=>{try{res.json(await prisma.shopSetting.findUnique({where:{id:1}}))}catch(e){next(e)}});
+router.put('/',authorize('ADMIN'),async(req,res,next)=>{try{const b=req.body;res.json(await prisma.shopSetting.upsert({where:{id:1},update:{shopName:b.shopName,address:b.address||null,phone:b.phone||null,email:b.email||null,gstin:b.gstin||null,invoicePrefix:b.invoicePrefix||'INV',currency:b.currency||'INR',invoiceFooter:b.invoiceFooter||'',allowNegativeStock:Boolean(b.allowNegativeStock)},create:{id:1,shopName:b.shopName||'My Grocery Shop'}}))}catch(e){next(e)}});
+router.get('/gst-rates',async(req,res,next)=>{try{res.json(await prisma.gstRate.findMany({where:{active:true},orderBy:{rate:'asc'}}))}catch(e){next(e)}});module.exports=router;
